@@ -2,20 +2,42 @@ import telebot
 from googletrans import Translator
 import requests
 import logging
+import sys
 
 # Настройка логирования
-logging.basicConfig(
-    filename='bot.log',  # Файл для логирования
-    level=logging.INFO,  # Уровень логирования
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'  # Формат логов
-)
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+# Удаляем все обработчики по умолчанию
+logger.handlers = []
+
+# Обработчик для записи логов в файл
+file_handler = logging.FileHandler('bot.log', encoding='utf-8')  # Указываем кодировку utf-8 для файла
+file_handler.setLevel(logging.INFO)
+
+# Обработчик для вывода логов в консоль (например, в PyCharm)
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.INFO)
+
+# Используем кодировку utf-8 для консоли
+console_handler.setStream(sys.stdout)
+
+# Формат логов
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+console_handler.setFormatter(formatter)
+
+# Добавляем обработчики в логгер
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
 
 # Создаем бота, используя ваш токен
-TOKEN = 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+TOKEN = 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
 bot = telebot.TeleBot(TOKEN)
 
 # Создаем экземпляр переводчика
 translator = Translator()
+
 
 # Функция для получения толкования и примеров использования через DictionaryAPI
 def get_word_info(word):
@@ -31,8 +53,14 @@ def get_word_info(word):
         for meaning in data[0]['meanings']:
             for definition in meaning['definitions']:
                 definitions.append(definition['definition'])
+
+                # Добавляем все примеры использования, если они есть
                 if 'example' in definition:
                     examples.append(definition['example'])
+
+                # Добавляем дополнительные примеры, если они есть
+                if 'synonyms' in definition:
+                    examples.extend(definition.get('synonyms', []))  # Добавляем дополнительные примеры (если есть)
 
         return definitions, examples
     else:
@@ -42,7 +70,7 @@ def get_word_info(word):
 # Обработчик команды /start
 @bot.message_handler(commands=['start'])
 def start(message):
-    logging.info(f"User {message.from_user.first_name} started the bot.")
+    logger.info(f"User {message.from_user.first_name} started the bot.")
     bot.reply_to(message,
                  "Привет! Введи слово на английском, и я переведу его на русский, добавлю толкование и примеры.")
 
@@ -55,7 +83,7 @@ def translate_message(message):
     user_name = message.from_user.first_name
 
     # Логирование полученного сообщения
-    logging.info(f"Received message from {user_name} (ID: {user_id}): {user_message}")
+    logger.info(f"Received message from {user_name} (ID: {user_id}): {user_message}")
 
     # Пытаемся перевести сообщение с английского на русский
     try:
@@ -81,13 +109,13 @@ def translate_message(message):
         )
 
         # Логирование ответа
-        logging.info(f"Sent response to {user_name} (ID: {user_id}): {response_text}")
+        logger.info(f"Sent response to {user_name} (ID: {user_id}): {response_text}")
 
         # Ответ бота
         bot.reply_to(message, response_text)
     except Exception as e:
         # Логирование ошибки
-        logging.error(f"Error occurred while processing message from {user_name} (ID: {user_id}): {e}")
+        logger.error(f"Error occurred while processing message from {user_name} (ID: {user_id}): {e}")
         bot.reply_to(message, "Извините, не удалось выполнить запрос.")
         print(f"Ошибка: {e}")
 
